@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { motion } from 'framer-motion'
 import SEO from './SEO'
-import Navbar from './Navbar'
 import Footer from './Footer'
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`

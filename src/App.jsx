@@ -8,6 +8,7 @@ import Testimonials from './components/Testimonials'
 import Footer from './components/Footer'
 import BlueprintViewer from './components/BlueprintViewer'
 import NotFound from './components/NotFound'
+import AIChatbot from './components/AIChatbot'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/blueprint/:slug" element={<BlueprintViewer />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <AIChatbot />
     </AnimatePresence>
   )
 }
