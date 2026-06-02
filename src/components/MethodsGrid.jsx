@@ -37,6 +37,13 @@ const blueprints = [
     slug: 'youtube-warmup',
     pdfPath: '/pdfs/Youtube Warm up Blueprint.pdf',
   },
+  {
+    title: 'CapCut Editing Blueprint',
+    description:
+      'Master CapCut editing techniques for short-form content. Learn pacing, transitions, effects, and professional-level video editing on mobile.',
+    slug: 'capcut-editing',
+    pdfPath: '/pdfs/CapCut Editing Blueprint.pdf',
+  },
 ]
 
 const sectionVariants = {
