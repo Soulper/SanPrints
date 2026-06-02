@@ -33,6 +33,11 @@ const blueprints = [
     title: 'YouTube Warm Up Blueprint',
     pdfPath: '/pdfs/Youtube Warm up Blueprint.pdf',
   },
+  {
+    slug: 'capcut-editing',
+    title: 'CapCut Editing Blueprint',
+    pdfPath: '/pdfs/CapCut Editing Blueprint.pdf',
+  },
 ]
 
 export default function BlueprintViewer() {
