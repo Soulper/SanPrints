@@ -49,6 +49,13 @@ export default function Navbar() {
               Home
             </Link>
           )}
+          <Link
+            to="/clipper"
+            className={`navbar-link ${location.pathname === '/clipper' ? 'navbar-link-active' : ''}`}
+            onClick={() => setMenuOpen(false)}
+          >
+            Clipper
+          </Link>
           {isHome ? (
             <button className="btn-primary navbar-cta" onClick={scrollToBlueprints}>
               Get BPs

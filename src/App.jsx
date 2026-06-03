@@ -7,6 +7,7 @@ import MethodsGrid from './components/MethodsGrid'
 import Testimonials from './components/Testimonials'
 import Footer from './components/Footer'
 import BlueprintViewer from './components/BlueprintViewer'
+import ClipperPage from './components/ClipperPage'
 import NotFound from './components/NotFound'
 import AIChatbot from './components/AIChatbot'
 
@@ -48,6 +49,7 @@ export default function App() {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/blueprint/:slug" element={<BlueprintViewer />} />
+        <Route path="/clipper" element={<ClipperPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AIChatbot />

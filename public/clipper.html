@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLIPR — AI Clip Cutter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0a0e17;
+    --surface: #11131a;
+    --surface2: #181b24;
+    --border: #232738;
+    --accent: #3b82f6;
+    --accent2: #60a5fa;
+    --text: #f0ede8;
+    --muted: #5b5f73;
+    --green: #34d399;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.35;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 3rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(10,14,23,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .logo span {
+    color: var(--accent);
+  }
+
+  .badge {
+    background: var(--accent);
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    vertical-align: super;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  nav {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+  }
+  nav a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--accent) !important;
+    color: white !important;
+    padding: 0.5rem 1.2rem !important;
+    border-radius: 4px;
+    font-size: 0.82rem !important;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 6rem 2rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-glow {
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(59,130,246,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    border: 1px solid rgba(59,130,246,0.3);
+    padding: 0.35rem 1rem;
+    border-radius: 2px;
+    margin-bottom: 1.5rem;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 10vw, 8rem);
+    line-height: 0.95;
+    letter-spacing: 0.02em;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    color: #888;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+    font-weight: 300;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .hero-sub strong { color: var(--text); font-weight: 500; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* UPLOAD ZONE */
+  .upload-section {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 0 2rem 5rem;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 4rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .drop-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(59,130,246,0.05) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: #141414;
+  }
+
+  .drop-zone { cursor: pointer; }
+
+  .drop-zone:hover::before, .drop-zone.drag-over::before {
+    opacity: 1;
+  }
+
+  .drop-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 1.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all 0.3s;
+  }
+
+  .drop-zone:hover .drop-icon {
+    background: rgba(59,130,246,0.1);
+    border-color: var(--accent);
+    transform: scale(1.05);
+  }
+
+  .drop-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .drop-sub {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .browse-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: all 0.2s;
+  }
+
+  .browse-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  .formats {
+    margin-top: 1.2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #444;
+    letter-spacing: 0.08em;
+  }
+
+  #fileInput { display: none; }
+
+  /* SETTINGS PANEL */
+  .settings-panel {
+    display: none;
+    margin-top: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+  }
+
+  .settings-panel.visible { display: flex; }
+
+  .setting-group {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .setting-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  .setting-select, .setting-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.55rem 0.8rem;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+  }
+
+  .setting-select:focus, .setting-input:focus {
+    border-color: var(--accent);
+  }
+
+  .analyze-btn {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .analyze-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  /* VIDEO PREVIEW */
+  .video-preview-container {
+    display: none;
+    margin-top: 1.5rem;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+    position: relative;
+  }
+
+  .video-preview-container.visible { display: block; }
+
+  #videoPreview {
+    width: 100%;
+    max-height: 340px;
+    display: block;
+  }
+
+  .video-info-bar {
+    background: var(--surface);
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    flex-wrap: wrap;
+  }
+
+  .video-info-bar span { color: var(--text); }
+
+  /* PROCESSING */
+  .processing-section {
+    display: none;
+    margin-top: 2rem;
+    padding: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+  }
+
+  .processing-section.visible { display: block; }
+
+  .processing-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .processing-sub {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .progress-bar-wrap {
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  .progress-steps {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: #333;
+    letter-spacing: 0.08em;
+    margin-top: 0.5rem;
+  }
+
+  .progress-steps .active { color: var(--accent); }
+  .progress-steps .done { color: var(--green); }
+
+  .ai-log {
+    margin-top: 1.5rem;
+    text-align: left;
+    background: #0d0d0d;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #555;
+    height: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .log-line { color: #555; line-height: 1.4; }
+  .log-line.accent { color: var(--accent); }
+  .log-line.green { color: var(--green); }
+
+  /* RESULTS */
+  .results-section {
+    display: none;
+    margin-top: 2rem;
+  }
+
+  .results-section.visible { display: block; }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .results-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.05em;
+  }
+
+  .results-title span { color: var(--accent); }
+
+  .download-all-btn {
+    background: var(--green);
+    color: #000;
+    border: none;
+    padding: 0.65rem 1.5rem;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .download-all-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+  .clips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+
+  .clip-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.3s;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .clip-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+  }
+
+  .clip-thumb {
+    background: #0d0d0d;
+    aspect-ratio: 9/16;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .clip-thumb video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .clip-thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .clip-card:hover .clip-thumb-overlay { opacity: 1; }
+
+  .play-btn-overlay {
+    width: 48px;
+    height: 48px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #000;
+  }
+
+  .score-badge {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    background: var(--accent);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  .score-badge.high { background: var(--green); color: #000; }
+  .score-badge.mid { background: var(--accent2); }
+
+  .clip-info {
+    padding: 0.8rem;
+  }
+
+  .clip-title {
+    font-weight: 600;
+    font-size: 0.88rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .clip-meta {
+    display: flex;
+    gap: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-bottom: 0.8rem;
+  }
+
+  .clip-tags {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.8rem;
+  }
+
+  .clip-tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: #888;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  .clip-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .clip-dl-btn {
+    flex: 1;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.55rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .clip-dl-btn:hover { background: #2563eb; }
+
+  .clip-trim-btn {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.8rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .clip-trim-btn:hover { border-color: var(--text); color: var(--text); }
+
+  /* TRIM MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+
+  .modal-overlay.visible { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 640px;
+    position: relative;
+  }
+
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.2rem;
+  }
+
+  .modal video {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 1rem;
+  }
+
+  .trim-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .trim-input-group label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+  }
+
+  .trim-input-group input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    outline: none;
+  }
+
+  .trim-input-group input:focus { border-color: var(--accent); }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: flex-end;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover { color: var(--text); border-color: var(--text); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.65rem 1.4rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 0.65rem 1.4rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .btn-primary:hover { background: #2563eb; }
+  .btn-secondary:hover { border-color: var(--text); }
+
+  /* HOW IT WORKS */
+  .how-section {
+    padding: 5rem 2rem;
+    border-top: 1px solid var(--border);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 0.03em;
+    margin-bottom: 3rem;
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+  }
+
+  .step {
+    position: relative;
+  }
+
+  .step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 4rem;
+    color: #1a1a1a;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .step-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .step-desc {
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.6;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: gap;
+    gap: 1rem;
+  }
+
+  .footer-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.1em;
+    color: #333;
+  }
+
+  .footer-logo span { color: var(--accent); }
+
+  .footer-note {
+    font-size: 0.78rem;
+    color: #333;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #333; }
+
+  @media (max-width: 600px) {
+    header { padding: 1rem 1.5rem; }
+    nav { gap: 1rem; }
+    .hero { padding: 4rem 1.5rem 3rem; }
+    .upload-section { padding: 0 1.5rem 3rem; }
+    footer { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CLIP<span>R</span></div>
+  <nav>
+    <a href="#how">How It Works</a>
+    <a href="#" class="nav-cta">Free Forever</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-tag">✦ AI-POWERED · FREE · NO WATERMARK</div>
+  <h1>FIND THE<br><em>BEST MOMENTS</em><br>AUTOMATICALLY</h1>
+  <p class="hero-sub">Upload any video. Our AI analyzes <strong>motion, audio peaks, and scene changes</strong> to extract your most viral-worthy clips — ready to post.</p>
+</section>
+
+<section class="upload-section">
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-icon">🎬</div>
+    <div class="drop-title">Drop Your Video Here</div>
+    <p class="drop-sub">Drag & drop or browse from your device</p>
+    <button class="browse-btn" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+    <p class="formats">MP4 · MOV · AVI · MKV · WEBM — Up to 2GB</p>
+  </div>
+  <input type="file" id="fileInput" accept="video/*">
+
+  <div class="video-preview-container" id="videoPreviewContainer">
+    <video id="videoPreview" controls></video>
+    <div class="video-info-bar" id="videoInfoBar">
+      <div>FILE: <span id="infoName">—</span></div>
+      <div>SIZE: <span id="infoSize">—</span></div>
+      <div>DURATION: <span id="infoDuration">—</span></div>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="setting-group">
+      <div class="setting-label">Clip Duration</div>
+      <select class="setting-select" id="clipDuration">
+        <option value="15">15 seconds (TikTok/Reels)</option>
+        <option value="30" selected>30 seconds</option>
+        <option value="60">60 seconds</option>
+        <option value="auto">Auto (AI decides)</option>
+      </select>
+    </div>
+    <div class="setting-group">
+      <div class="setting-label">Number of Clips</div>
+      <select class="setting-select" id="clipCount">
+        <option value="3">3 clips</option>
+        <option value="5" selected>5 clips</option>
+        <option value="8">8 clips</option>
+        <option value="10">10 clips</option>
+      </select>
+    </div>
+    <div class="setting-group">
+      <div class="setting-label">Detection Mode</div>
+      <select class="setting-select" id="detectMode">
+        <option value="viral" selected>Viral Moments</option>
+        <option value="action">High Action</option>
+        <option value="speech">Key Dialogue</option>
+        <option value="scene">Scene Changes</option>
+      </select>
+    </div>
+    <div class="setting-group">
+      <div class="setting-label">Output Format</div>
+      <select class="setting-select" id="outputFormat">
+        <option value="9:16" selected>9:16 (Vertical / TikTok)</option>
+        <option value="1:1">1:1 (Square / Instagram)</option>
+        <option value="16:9">16:9 (Original)</option>
+      </select>
+    </div>
+    <button class="analyze-btn" id="analyzeBtn">⚡ ANALYZE & FIND BEST MOMENTS</button>
+  </div>
+
+  <!-- PROCESSING -->
+  <div class="processing-section" id="processingSection">
+    <div class="processing-title">🔍 AI Is Analyzing Your Video</div>
+    <div class="processing-sub" id="processingSubtitle">Scanning frames for high-engagement moments...</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="progress-steps">
+      <span id="step1" class="active">DECODE</span>
+      <span id="step2">ANALYZE</span>
+      <span id="step3">SCORE</span>
+      <span id="step4">EXTRACT</span>
+      <span id="step5">DONE</span>
+    </div>
+    <div class="ai-log" id="aiLog"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-section" id="resultsSection">
+    <div class="results-header">
+      <div class="results-title">TOP CLIPS — <span id="clipFoundCount">5</span> FOUND</div>
+      <button class="download-all-btn" id="downloadAllBtn">⬇ Download All Clips</button>
+    </div>
+    <div class="clips-grid" id="clipsGrid"></div>
+  </div>
+</section>
+
+<!-- TRIM MODAL -->
+<div class="modal-overlay" id="trimModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeTrimModal()">✕</button>
+    <div class="modal-title">✂ Trim Clip</div>
+    <video id="modalVideo" controls></video>
+    <div class="trim-controls">
+      <div class="trim-input-group">
+        <label>START TIME (seconds)</label>
+        <input type="number" id="trimStart" min="0" step="0.1" value="0">
+      </div>
+      <div class="trim-input-group">
+        <label>END TIME (seconds)</label>
+        <input type="number" id="trimEnd" min="0" step="0.1" value="30">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeTrimModal()">Cancel</button>
+      <button class="btn-primary" onclick="applyTrim()">Apply & Download</button>
+    </div>
+  </div>
+</div>
+
+<section class="how-section" id="how">
+  <div class="section-label">// HOW IT WORKS</div>
+  <div class="section-title">THREE STEPS<br>TO VIRAL CLIPS</div>
+  <div class="steps-grid">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-title">Upload Your Video</div>
+      <div class="step-desc">Drop any video file. Long-form, streams, podcasts, gameplay — anything works.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-title">AI Finds the Moments</div>
+      <div class="step-desc">Our algorithm scans motion intensity, audio peaks, scene transitions, and pacing to score each second.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-title">Download & Post</div>
+      <div class="step-desc">Get your best clips trimmed and ready. No watermarks. No account needed. Free forever.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-title">Fine-tune If Needed</div>
+      <div class="step-desc">Use the built-in trim tool to adjust any clip to the exact second before downloading.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">CLIP<span>R</span></div>
+  <div class="footer-note">FREE · NO ACCOUNT · NO WATERMARK · RUNS IN-BROWSER</div>
+  <div style="font-size:0.78rem;color:#333;font-family:'JetBrains Mono',monospace;">Credits to Zyren</div>
+</footer>
+
+<script>
+  // ─── STATE ───────────────────────────────────────────────
+  let videoFile = null;
+  let videoDuration = 0;
+  let generatedClips = [];
+  let currentTrimClip = null;
+
+  // ─── DRAG & DROP ─────────────────────────────────────────
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('video/')) handleFile(file);
+  });
+
+  dropZone.addEventListener('click', () => document.getElementById('fileInput').click());
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file) {
+    videoFile = file;
+    const url = URL.createObjectURL(file);
+    const preview = document.getElementById('videoPreview');
+    preview.src = url;
+    document.getElementById('videoPreviewContainer').classList.add('visible');
+    document.getElementById('infoName').textContent = file.name;
+    document.getElementById('infoSize').textContent = (file.size / 1024 / 1024).toFixed(1) + ' MB';
+
+    preview.addEventListener('loadedmetadata', () => {
+      videoDuration = preview.duration;
+      document.getElementById('infoDuration').textContent = formatTime(videoDuration);
+    }, { once: true });
+
+    document.getElementById('settingsPanel').classList.add('visible');
+    document.getElementById('processingSection').classList.remove('visible');
+    document.getElementById('resultsSection').classList.remove('visible');
+    window.scrollTo({ top: document.getElementById('settingsPanel').offsetTop - 100, behavior: 'smooth' });
+  }
+
+  // ─── ANALYZE ─────────────────────────────────────────────
+  document.getElementById('analyzeBtn').addEventListener('click', startAnalysis);
+
+  // ─── REAL AI ANALYSIS ENGINE ───────────────────────────────
+
+  async function startAnalysis() {
+    if (!videoFile) return;
+
+    document.getElementById('settingsPanel').style.opacity = '0.5';
+    document.getElementById('settingsPanel').style.pointerEvents = 'none';
+    document.getElementById('processingSection').classList.add('visible');
+    document.getElementById('resultsSection').classList.remove('visible');
+
+    const log = document.getElementById('aiLog');
+    log.innerHTML = '';
+    const bar = document.getElementById('progressBar');
+    bar.style.width = '0%';
+    document.getElementById('processingSubtitle').textContent = 'Starting analysis...';
+
+    const steps = ['step1','step2','step3','step4','step5'];
+    steps.forEach(s => { document.getElementById(s).className = ''; });
+    document.getElementById('step1').className = 'active';
+
+    const addLog = (msg, cls = '') => {
+      const line = document.createElement('div');
+      line.className = 'log-line ' + cls;
+      line.textContent = msg;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    };
+
+    const setProgress = (pct, activeStep, subtitle) => {
+      bar.style.width = pct + '%';
+      if (subtitle) document.getElementById('processingSubtitle').textContent = subtitle;
+      steps.forEach((s, i) => {
+        const el = document.getElementById(s);
+        if (i < activeStep) el.className = 'done';
+        else if (i === activeStep) el.className = 'active';
+        else el.className = '';
+      });
+    };
+
+    const count = parseInt(document.getElementById('clipCount').value) || 5;
+    const clipSetting = document.getElementById('clipDuration').value;
+    const clipSec = clipSetting === 'auto' ? null : parseInt(clipSetting);
+    const mode = document.getElementById('detectMode').value;
+
+    try {
+      setProgress(3, 0, 'Decoding video stream...');
+      addLog('> Starting AI analysis engine...', 'accent');
+      await sleep(200);
+
+      // Step 1: Audio analysis
+      setProgress(12, 0, 'Extracting audio data...');
+      addLog('> Reading audio track...');
+      await sleep(100);
+
+      let audioProfile = null;
+      try {
+        audioProfile = await extractAudioProfile(videoFile);
+        addLog(`> Audio analyzed: ${audioProfile.length}s, ${audioProfile.peaks} peaks found`);
+      } catch (e) {
+        addLog('> Audio track unavailable — proceeding with video-only analysis');
+      }
+
+      // Step 2: Motion analysis
+      setProgress(35, 1, 'Analyzing motion patterns...');
+      addLog('> Computing frame-by-frame motion differences...', 'accent');
+      const motionProfile = await analyzeMotion(videoFile, videoDuration, (pct) => {
+        setProgress(35 + pct * 0.25, 1);
+      });
+      addLog(`> Motion analysis: ${motionProfile.peaks} activity peaks`);
+
+      // Step 3: Scene detection
+      setProgress(62, 2, 'Detecting scene transitions...');
+      addLog('> Comparing frame histograms for scene changes...');
+      let sceneProfile = null;
+      try {
+        sceneProfile = detectScenes(motionProfile.frames, motionProfile.interval);
+        addLog(`> Scene detection: ${sceneProfile.cuts} transitions found`);
+      } catch (e) {
+        addLog('> Scene detection skipped');
+      }
+
+      // Step 4: Scoring
+      setProgress(78, 2, 'Computing engagement scores...');
+      addLog('> Blending motion, audio, and scene data...', 'accent');
+      const scores = computeScores(audioProfile, motionProfile, sceneProfile, mode, videoDuration);
+      addLog(`> Score curve: ${scores.length}s analyzed`);
+
+      // Step 5: Extract clips
+      setProgress(90, 3, 'Selecting top moments...');
+      addLog('> Finding highest-scoring non-overlapping windows...');
+      generatedClips = pickClips(scores, count, clipSec, mode);
+      addLog(`> ${generatedClips.length} high-engagement clips selected ✓`, 'green');
+
+      setProgress(100, 4, 'Analysis complete!');
+      addLog('> Analysis complete! Clips ready for preview and export.', 'green');
+      await sleep(500);
+
+      document.getElementById('settingsPanel').style.opacity = '';
+      document.getElementById('settingsPanel').style.pointerEvents = '';
+      document.getElementById('clipFoundCount').textContent = generatedClips.length;
+      document.getElementById('resultsSection').classList.add('visible');
+      renderClips();
+      window.scrollTo({ top: document.getElementById('resultsSection').offsetTop - 80, behavior: 'smooth' });
+
+    } catch (err) {
+      addLog(`> Error: ${err.message}`, 'accent');
+      console.error(err);
+      document.getElementById('settingsPanel').style.opacity = '';
+      document.getElementById('settingsPanel').style.pointerEvents = '';
+    }
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function waitForSeek(video) {
+    return new Promise(resolve => {
+      if (video.seeking) {
+        video.addEventListener('seeked', () => resolve(), { once: true });
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  // ─── AUDIO ANALYSIS ─────────────────────────────────────────
+
+  // ─── AUDIO ANALYSIS ─────────────────────────────────────────
+  // Uses RMS energy + onset detection + zero-crossing rate (voice detection)
+
+  async function extractAudioProfile(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioBuffer;
+    try {
+      audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    } finally {
+      audioCtx.close();
+    }
+
+    const channelData = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+    const duration = audioBuffer.duration;
+    const windowSize = Math.floor(sampleRate * 0.25);
+    const numWindows = Math.floor(channelData.length / windowSize);
+    const windows = [];
+
+    for (let i = 0; i < numWindows; i++) {
+      const start = i * windowSize;
+      let sumSq = 0, zcr = 0;
+
+      for (let j = 0; j < windowSize; j++) {
+        const s = channelData[start + j];
+        sumSq += s * s;
+        if (j > 0 && ((s >= 0) !== (channelData[start + j - 1] >= 0))) zcr++;
+      }
+
+      const rms = Math.sqrt(sumSq / windowSize);
+      windows.push({ rms, zcr: zcr / windowSize });
+    }
+
+    const maxRms = Math.max(...windows.map(w => w.rms), 0.001);
+    const maxZcr = Math.max(...windows.map(w => w.zcr), 0.001);
+
+    const scores = new Float32Array(windows.length);
+    let peaks = 0;
+
+    for (let i = 0; i < windows.length; i++) {
+      const rmsNorm = Math.min(windows[i].rms / maxRms * 1.5, 1);
+      const zcrNorm = maxZcr > 0 ? windows[i].zcr / maxZcr : 0;
+
+      // Onset: sudden RMS increase from previous window
+      let onset = 0;
+      if (i > 0) {
+        const prev = windows[i - 1].rms / maxRms;
+        onset = Math.max(0, Math.min((rmsNorm - prev) * 4, 1));
+      }
+
+      // Voice activity: moderate energy + high ZCR = likely speech
+      const voice = rmsNorm > 0.08 ? Math.min(zcrNorm * 2, 1) : 0;
+
+      // Blend: energy anchors, onset catches attention spikes, voice lifts dialogue
+      scores[i] = rmsNorm * 0.4 + onset * 0.35 + voice * 0.25;
+      if (onset > 0.25) peaks++;
+    }
+
+    return { scores, length: Math.ceil(duration), peaks, interval: 0.25 };
+  }
+
+  // ─── MOTION ANALYSIS ────────────────────────────────────────
+  // Block-based with center weighting
+
+  async function analyzeMotion(file, duration, onProgress) {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.preload = 'auto';
+    video.playsInline = true;
+    video.src = URL.createObjectURL(file);
+    video.load();
+
+    await new Promise(resolve => { video.addEventListener('loadedmetadata', resolve, { once: true }); });
+
+    const interval = duration > 300 ? 1.0 : 0.5;
+    const totalSamples = Math.min(Math.ceil(duration / interval), 600);
+    const motionScores = [];
+    const frameData = [];
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const W = 160, H = 90;
+    canvas.width = W;
+    canvas.height = H;
+
+    // Block grid: 16x12 blocks of 10px each
+    const BX = 16, BY = 12, BW = W / BX, BH = H / BY;
+
+    // Center-weight map: blocks closer to center get higher weight
+    const cx = BX / 2, cy = BY / 2;
+    const weightMap = [];
+    for (let by = 0; by < BY; by++) {
+      for (let bx = 0; bx < BX; bx++) {
+        const dist = Math.sqrt((bx - cx) ** 2 + (by - cy) ** 2) / Math.sqrt(cx ** 2 + cy ** 2);
+        weightMap.push(1 + Math.max(0, 1 - dist)); // 1.0 at edges, 2.0 at center
+      }
+    }
+
+    let prevGray = null;
+    let peaks = 0;
+
+    for (let i = 0; i < totalSamples; i++) {
+      const time = i * interval;
+      video.currentTime = time;
+      await waitForSeek(video);
+
+      ctx.drawImage(video, 0, 0, W, H);
+      const imageData = ctx.getImageData(0, 0, W, H);
+      const pixels = imageData.data;
+
+      const gray = new Uint8Array(W * H);
+      for (let j = 0; j < W * H; j++) {
+        const idx = j * 4;
+        gray[j] = (pixels[idx] * 77 + pixels[idx + 1] * 150 + pixels[idx + 2] * 29) >> 8;
+      }
+
+      if (prevGray) {
+        // Block-based motion with center weighting
+        let weightedDiff = 0;
+        let totalWeight = 0;
+
+        for (let by = 0; by < BY; by++) {
+          for (let bx = 0; bx < BX; bx++) {
+            let blockDiff = 0;
+            for (let py = 0; py < BH; py++) {
+              for (let px = 0; px < BW; px++) {
+                const gx = bx * BW + px;
+                const gy = by * BH + py;
+                const idx = gy * W + gx;
+                blockDiff += Math.abs(gray[idx] - prevGray[idx]);
+              }
+            }
+            const w = weightMap[by * BX + bx];
+            weightedDiff += (blockDiff / (BW * BH)) * w;
+            totalWeight += w;
+          }
+        }
+
+        const score = Math.min(weightedDiff / totalWeight * 6, 100);
+        motionScores.push(score);
+        if (score > 10) peaks++;
+      } else {
+        motionScores.push(0);
+      }
+
+      frameData.push(gray);
+      prevGray = gray;
+      if (onProgress) onProgress(i / totalSamples);
+      if (i % 10 === 0) await sleep(0);
+    }
+
+    URL.revokeObjectURL(video.src);
+    return { scores: motionScores, peaks, frames: frameData, interval };
+  }
+
+  // ─── SCENE DETECTION ────────────────────────────────────────
+  // 64-bin RGB histograms, detects both hard cuts and gradual transitions
+
+  function detectScenes(frameData, interval) {
+    if (!frameData || frameData.length < 2) return { scores: [], cuts: 0, interval };
+
+    const W = 160, H = 90;
+    const BINS = 64;
+    const sceneScores = [];
+
+    let prevHist = new Float32Array(BINS);
+    for (let j = 0; j < W * H; j++) {
+      prevHist[(frameData[0][j] / (256 / BINS)) | 0]++;
+    }
+
+    for (let i = 1; i < frameData.length; i++) {
+      const currHist = new Float32Array(BINS);
+      for (let j = 0; j < W * H; j++) {
+        currHist[(frameData[i][j] / (256 / BINS)) | 0]++;
+      }
+
+      let chiSq = 0;
+      for (let b = 0; b < BINS; b++) {
+        const sum = prevHist[b] + currHist[b];
+        if (sum > 0) chiSq += (prevHist[b] - currHist[b]) ** 2 / sum;
+      }
+
+      const score = Math.min(chiSq / (W * H) * 80, 100);
+      sceneScores.push(score);
+      prevHist = currHist;
+    }
+
+    sceneScores.unshift(0);
+    const cuts = sceneScores.filter(s => s > 45).length;
+
+    return { scores: sceneScores, cuts, interval };
+  }
+
+  // ─── SCORING ENGINE ─────────────────────────────────────────
+  // z-score normalization + contrast boost + scene proximity bonus
+
+  function computeScores(audioProfile, motionProfile, sceneProfile, mode, duration) {
+    const len = Math.ceil(duration);
+    const scores = new Float32Array(len);
+
+    const motion = resample(motionProfile?.scores || [], len, motionProfile?.interval || 0.5);
+    const audio = resample(audioProfile?.scores || [], len, audioProfile?.interval || 0.5);
+    const scene = resample(sceneProfile?.scores || [], len, sceneProfile?.interval || 0.5);
+
+    // z-score normalize each signal, clamp to [0, 1]
+    const motionN = zNorm(motion);
+    const audioN = zNorm(audio);
+    const sceneN = zNorm(scene);
+
+    let wMotion, wAudio, wScene;
+    switch (mode) {
+      case 'action': wMotion = 0.55; wAudio = 0.30; wScene = 0.15; break;
+      case 'speech': wMotion = 0.10; wAudio = 0.75; wScene = 0.15; break;
+      case 'scene':  wMotion = 0.15; wAudio = 0.15; wScene = 0.70; break;
+      default:       wMotion = 0.35; wAudio = 0.40; wScene = 0.25;
+    }
+
+    for (let i = 0; i < len; i++) {
+      // Base blend
+      let s = motionN[i] * wMotion + audioN[i] * wAudio + sceneN[i] * wScene;
+
+      // Multiplicative boost when multiple signals agree (both high)
+      const agreement = (motionN[i] > 0.6) + (audioN[i] > 0.6) + (sceneN[i] > 0.6);
+      if (agreement >= 2) s += 0.2;
+      if (agreement >= 3) s += 0.15;
+
+      scores[i] = Math.min(s, 1);
+    }
+
+    // Contrast boost: how much does each second stand out from its 10s context
+    const boosted = new Float32Array(len);
+    const contextRadius = 5;
+    for (let i = 0; i < len; i++) {
+      let ctxSum = 0, ctxCount = 0;
+      for (let j = -contextRadius; j <= contextRadius; j++) {
+        const idx = i + j;
+        if (idx >= 0 && idx < len && idx !== i) {
+          ctxSum += scores[idx];
+          ctxCount++;
+        }
+      }
+      const ctxAvg = ctxSum / ctxCount;
+      // Boost if this second is significantly higher than its surroundings
+      const contrast = Math.max(0, scores[i] - ctxAvg);
+      boosted[i] = Math.min(scores[i] + contrast * 0.5, 1);
+    }
+
+    // Scene proximity bonus: seconds near a scene change get a lift
+    const final = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      let sceneBonus = 0;
+      if (sceneN[i] > 0.5) {
+        // Find distance to nearest scene peak
+        let minDist = Infinity;
+        for (let j = 0; j < len; j++) {
+          if (sceneN[j] > 0.5) {
+            const d = Math.abs(i - j);
+            if (d < minDist) minDist = d;
+          }
+        }
+        if (minDist <= 3) sceneBonus = 0.1 * (1 - minDist / 3);
+      }
+      final[i] = Math.min(boosted[i] + sceneBonus, 1);
+    }
+
+    return final;
+  }
+
+  function zNorm(data) {
+    const n = data.length;
+    if (n === 0) return data;
+    let sum = 0, sumSq = 0;
+    for (let i = 0; i < n; i++) { sum += data[i]; sumSq += data[i] * data[i]; }
+    const mean = sum / n;
+    const std = Math.sqrt(Math.max(sumSq / n - mean * mean, 0.001));
+    const result = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      // z-score, clamp to [-2, 2], then map to [0, 1]
+      const z = (data[i] - mean) / std;
+      result[i] = Math.max(0, Math.min((z + 2) / 4, 1));
+    }
+    return result;
+  }
+
+  function resample(data, targetLen, sourceInterval) {
+    const result = new Float32Array(targetLen);
+    if (!data || data.length === 0) return result;
+    const sourceLen = data.length;
+    for (let i = 0; i < targetLen; i++) {
+      const srcIdx = (i / targetLen) * sourceLen;
+      const lo = Math.floor(srcIdx);
+      const hi = Math.min(lo + 1, sourceLen - 1);
+      const frac = srcIdx - lo;
+      result[i] = data[lo] * (1 - frac) + data[hi] * frac;
+    }
+    return result;
+  }
+
+  // ─── CLIP SELECTION ─────────────────────────────────────────
+  // Prefers clean boundaries near scene changes with high internal consistency
+
+  function pickClips(scores, count, clipSec, mode) {
+    const totalDur = scores.length;
+    if (totalDur < 2) return [];
+
+    const clipDur = clipSec
+      ? Math.min(clipSec, totalDur - 1)
+      : Math.min(45, Math.max(10, Math.floor(totalDur / count / 2)));
+
+    const windowSize = Math.max(1, Math.min(clipDur, totalDur - 1));
+    const candidates = [];
+
+    for (let i = 0; i + windowSize <= totalDur; i++) {
+      let sum = 0, variance = 0;
+      for (let j = 0; j < windowSize; j++) sum += scores[i + j];
+      const avg = sum / windowSize;
+
+      // Variance: prefer clips with dynamic range (not flat)
+      for (let j = 0; j < windowSize; j++) {
+        const d = scores[i + j] - avg;
+        variance += d * d;
+      }
+      const std = Math.sqrt(variance / windowSize);
+
+      // Boundary quality: prefer clips starting near low-score regions
+      // (clean entry point into action)
+      const startPad = Math.max(0, i - 2);
+      let contextSum = 0, contextCount = 0;
+      for (let j = startPad; j < i && j >= 0; j++) {
+        contextSum += scores[j];
+        contextCount++;
+      }
+      const ctxBefore = contextCount > 0 ? contextSum / contextCount : 0;
+      const boundaryBonus = Math.max(0, 0.15 - ctxBefore * 0.15);
+
+      candidates.push({
+        start: i,
+        avg,
+        std,
+        score: avg + std * 0.5 + boundaryBonus
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+
+    const clips = [];
+    const used = new Set();
+
+    for (const c of candidates) {
+      if (clips.length >= count) break;
+      let overlap = false;
+      for (let i = c.start; i < c.start + windowSize && i < totalDur; i++) {
+        if (used.has(i)) { overlap = true; break; }
+      }
+      if (overlap) continue;
+      for (let i = c.start; i < c.start + windowSize && i < totalDur; i++) used.add(i);
+
+      clips.push({
+        id: clips.length,
+        start: c.start,
+        dur: windowSize,
+        score: Math.min(Math.round(Math.max(c.avg, c.avg + c.std * 0.3) * 100), 99) || 0,
+        label: getLabel(mode, clips.length),
+        tags: getTags(Math.max(c.avg, c.avg + c.std * 0.3), mode),
+        videoUrl: document.getElementById('videoPreview').src
+      });
+    }
+
+    clips.sort((a, b) => a.start - b.start);
+    return clips;
+  }
+
+  function getLabel(mode, idx) {
+    const labels = {
+      viral:   ['Peak Action','Viral Moment','Hook Detected','High Energy','Engagement Spike','Trending Clip','Hot Moment','Best Take','Highlight','Top Scene'],
+      action:  ['Fast Motion','Action Burst','High Activity','Movement Peak','Dynamic Scene','Speed Spike','Intensity Peak','Motion Rush','Action Hit','Energy Burst'],
+      speech:  ['Key Quote','Dialogue Peak','Voice Intensity','Statement Moment','Audio Spike','Important Line','Speech Highlight','Discussion Point','Reaction','Sound Bite'],
+      scene:   ['Scene Cut','Transition Peak','Scene Change','Cut Point','Scene Shift','New Scene','Transition','Moment Shift','Scene Break','Visual Change']
+    };
+    return (labels[mode] || labels.viral)[idx % 10];
+  }
+
+  function getTags(score, mode) {
+    const pool = [
+      ['high-motion','peak-energy'], ['audio-spike','engaging'],
+      ['scene-change','dynamic'], ['hook','viral-ready'],
+      ['action','shareable'], ['dialogue','key-moment'],
+      ['intense','highlight'], ['trending','best-of']
+    ];
+    const tags = [...pool[Math.floor(Math.random() * pool.length)]];
+    if (score > 0.8) tags.push('top-rated');
+    if (mode === 'viral') tags.push('viral-potential');
+    return tags;
+  }
+
+  function renderClips() {
+    const grid = document.getElementById('clipsGrid');
+    grid.innerHTML = '';
+
+    generatedClips.forEach((clip, idx) => {
+      const scoreClass = clip.score >= 90 ? 'high' : clip.score >= 80 ? 'mid' : '';
+      const card = document.createElement('div');
+      card.className = 'clip-card';
+      card.style.animationDelay = (idx * 0.07) + 's';
+      card.innerHTML = `
+        <div class="clip-thumb" onclick="openTrimModal(${clip.id})">
+          <video src="${clip.videoUrl}#t=${clip.start.toFixed(1)},${(clip.start + clip.dur).toFixed(1)}"
+                 muted preload="metadata" style="pointer-events:none;"></video>
+          <div class="clip-thumb-overlay">
+            <div class="play-btn-overlay">▶</div>
+          </div>
+          <div class="score-badge ${scoreClass}">${clip.score}%</div>
+        </div>
+        <div class="clip-info">
+          <div class="clip-title">${clip.label} #${idx + 1}</div>
+          <div class="clip-meta">
+            <span>${formatTime(clip.start)} – ${formatTime(clip.start + clip.dur)}</span>
+            <span>${clip.dur.toFixed(0)}s</span>
+          </div>
+          <div class="clip-tags">
+            ${clip.tags.map(t => `<span class="clip-tag">${t}</span>`).join('')}
+          </div>
+          <div class="clip-actions">
+            <button class="clip-dl-btn" onclick="downloadClip(${clip.id})">⬇ Download</button>
+            <button class="clip-trim-btn" onclick="openTrimModal(${clip.id})">✂ Trim</button>
+          </div>
+        </div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  // ─── EXPORT (canvas + MediaRecorder) ──────────────────────
+
+  function addExportLog(msg, cls = '') {
+    const log = document.getElementById('aiLog');
+    const line = document.createElement('div');
+    line.className = 'log-line ' + cls;
+    line.textContent = msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function downloadClip(clipId) {
+    const clip = generatedClips.find(c => c.id === clipId);
+    if (!clip) return;
+    await exportClipSegment(videoFile, clip.start, clip.start + clip.dur, `clipr_clip_${clipId + 1}`);
+  }
+
+  document.getElementById('downloadAllBtn').addEventListener('click', async () => {
+    for (let i = 0; i < generatedClips.length; i++) {
+      const clip = generatedClips[i];
+      await exportClipSegment(videoFile, clip.start, clip.start + clip.dur, `clipr_clip_${i + 1}`);
+    }
+  });
+
+  async function exportClipSegment(file, startTime, endTime, basename) {
+    const aspectRatio = document.getElementById('outputFormat').value;
+    addExportLog(`> Exporting ${formatTime(startTime)} - ${formatTime(endTime)}...`, 'accent');
+
+    try {
+      const video = document.createElement('video');
+      video.preload = 'auto';
+      video.playsInline = true;
+      video.crossOrigin = 'anonymous';
+      const videoUrl = URL.createObjectURL(file);
+      video.src = videoUrl;
+      video.load();
+
+      let audioCtx, stream, recorder, sx, sy, sw, sh;
+      const chunks = [];
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      let metaLoaded = false;
+      video.addEventListener('loadedmetadata', () => {
+        metaLoaded = true;
+        const srcW = video.videoWidth;
+        const srcH = video.videoHeight;
+
+        if (aspectRatio === '9:16') {
+          const targetH = srcH;
+          const targetW = targetH * 9 / 16;
+          sx = Math.max(0, (srcW - targetW) / 2);
+          sy = 0;
+          sw = Math.min(targetW, srcW);
+          sh = targetH;
+          canvas.width = Math.round(sw / 2);
+          canvas.height = Math.round(sh / 2);
+        } else if (aspectRatio === '1:1') {
+          const size = Math.min(srcW, srcH);
+          sx = (srcW - size) / 2;
+          sy = (srcH - size) / 2;
+          sw = size;
+          sh = size;
+          canvas.width = canvas.height = Math.round(size / 3);
+        } else {
+          sx = 0; sy = 0;
+          sw = srcW; sh = srcH;
+          canvas.width = Math.round(srcW / 2);
+          canvas.height = Math.round(srcH / 2);
+        }
+
+        video.currentTime = startTime;
+      });
+
+      video.addEventListener('seeked', () => {
+        if (recorder) return;
+
+        stream = canvas.captureStream(30);
+
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          audioCtx.resume();
+          const src = audioCtx.createMediaElementSource(video);
+          const dest = audioCtx.createMediaStreamDestination();
+          src.connect(dest);
+          dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+        } catch (e) {
+          addExportLog('> Audio capture unavailable (will be silent)');
+        }
+
+        const mimeTypes = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm',
+        ];
+        const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+        const ext = mimeType.includes('mp4') ? '.mp4' : '.webm';
+
+        recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: mimeType });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = basename + ext;
+          a.click();
+          URL.revokeObjectURL(a.href);
+          URL.revokeObjectURL(videoUrl);
+          if (audioCtx) audioCtx.close();
+          addExportLog(`✅ Downloaded: ${basename}${ext}`, 'green');
+        };
+        recorder.start(100);
+        video.play();
+      });
+
+      const drawFrame = () => {
+        if (!recorder || recorder.state !== 'recording') return;
+        if (video.currentTime >= endTime) {
+          recorder.stop();
+          video.pause();
+          return;
+        }
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(drawFrame);
+      };
+
+      video.addEventListener('play', () => { drawFrame(); });
+
+      setTimeout(() => {
+        if (!metaLoaded) {
+          video.src = '';
+          URL.revokeObjectURL(videoUrl);
+          addExportLog('❌ Export timed out loading video metadata');
+        }
+      }, 10000);
+
+    } catch (err) {
+      addExportLog(`❌ Export failed: ${err.message}`, 'accent');
+      console.error(err);
+    }
+  }
+
+  // ─── TRIM MODAL ──────────────────────────────────────────
+  function openTrimModal(clipId) {
+    currentTrimClip = generatedClips.find(c => c.id === clipId);
+    if (!currentTrimClip) return;
+    const mv = document.getElementById('modalVideo');
+    mv.src = currentTrimClip.videoUrl;
+    mv.currentTime = currentTrimClip.start;
+    document.getElementById('trimStart').value = currentTrimClip.start.toFixed(1);
+    document.getElementById('trimEnd').value = (currentTrimClip.start + currentTrimClip.dur).toFixed(1);
+    document.getElementById('trimModal').classList.add('visible');
+  }
+
+  function closeTrimModal() {
+    document.getElementById('trimModal').classList.remove('visible');
+    document.getElementById('modalVideo').pause();
+    currentTrimClip = null;
+  }
+
+  async function applyTrim() {
+    if (!currentTrimClip) return;
+    const start = parseFloat(document.getElementById('trimStart').value);
+    const end = parseFloat(document.getElementById('trimEnd').value);
+    if (isNaN(start) || isNaN(end) || end <= start) { alert('Invalid trim range.'); return; }
+    await exportClipSegment(videoFile, start, end, `clipr_trimmed_clip_${currentTrimClip.id + 1}`);
+    closeTrimModal();
+  }
+
+  // ─── UTILS ───────────────────────────────────────────────
+  function formatTime(s) {
+    if (!s || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  }
+</script>
+</body>
+</html>

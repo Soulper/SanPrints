@@ -945,6 +945,12 @@ a:hover {
   background: var(--glass-hover);
 }
 
+.navbar-link-active,
+.navbar-link-active:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
 .navbar-cta {
   padding: 10px 22px !important;
   font-size: 0.85rem !important;
@@ -1323,4 +1329,46 @@ a:hover {
     bottom: 16px;
     right: 16px;
   }
+}
+
+/* Clipper Page */
+.clipper-page {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #0a0e17;
+}
+
+.clipper-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.clipper-back-btn {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(10, 14, 23, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #888;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clipper-back-btn:hover {
+  color: #fff;
+  background: rgba(10, 14, 23, 0.95);
+  border-color: rgba(255, 255, 255, 0.2);
 }
