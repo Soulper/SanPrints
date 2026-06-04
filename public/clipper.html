@@ -1648,19 +1648,38 @@
     const aspectRatio = document.getElementById('outputFormat').value;
     addExportLog(`> Exporting ${formatTime(startTime)} - ${formatTime(endTime)}...`, 'accent');
 
+    let video, videoUrl;
+
+    function cleanupExport() {
+      if (video && video.parentNode) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        document.body.removeChild(video);
+      }
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
+    }
+
     try {
-      const video = document.createElement('video');
+      video = document.createElement('video');
       video.preload = 'auto';
       video.playsInline = true;
       video.crossOrigin = 'anonymous';
-      const videoUrl = URL.createObjectURL(file);
+      video.muted = true;
+
+      // Must be visible enough for Chrome to render frames into captureStream
+      video.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:320px;height:180px;opacity:0;pointer-events:none;';
+      document.body.appendChild(video);
+
+      videoUrl = URL.createObjectURL(file);
       video.src = videoUrl;
       video.load();
 
-      let audioCtx, stream, recorder, sx, sy, sw, sh;
+      let stream, recorder, sx, sy, sw, sh;
       const chunks = [];
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+      // Always use canvas+loop so the recorder reliably stops at endTime
 
       let metaLoaded = false;
       video.addEventListener('loadedmetadata', () => {
@@ -1694,20 +1713,16 @@
         video.currentTime = startTime;
       });
 
-      video.addEventListener('seeked', () => {
+      video.addEventListener('seeked', async () => {
         if (recorder) return;
 
+        // Canvas for video + audio passthrough from native capture
         stream = canvas.captureStream(30);
-
         try {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          audioCtx.resume();
-          const src = audioCtx.createMediaElementSource(video);
-          const dest = audioCtx.createMediaStreamDestination();
-          src.connect(dest);
-          dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-        } catch (e) {
-          addExportLog('> Audio capture unavailable (will be silent)');
+          const vs = video.captureStream(30);
+          vs.getAudioTracks().forEach(t => stream.addTrack(t));
+        } catch (_) {
+          addExportLog('> Audio passthrough unavailable');
         }
 
         const mimeTypes = [
@@ -1722,43 +1737,60 @@
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
         recorder.onstop = () => {
           const blob = new Blob(chunks, { type: mimeType });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = basename + ext;
-          a.click();
-          URL.revokeObjectURL(a.href);
-          URL.revokeObjectURL(videoUrl);
-          if (audioCtx) audioCtx.close();
-          addExportLog(`✅ Downloaded: ${basename}${ext}`, 'green');
+          if (blob.size > 0) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = basename + ext;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            addExportLog(`✅ Downloaded: ${basename}${ext}`, 'green');
+          }
+          cleanupExport();
         };
+
         recorder.start(100);
-        video.play();
+        startCanvasLoop();
+
+        try { await video.play(); } catch (e) {
+          addExportLog('❌ Video playback failed');
+          recorder.stop();
+        }
       });
 
-      const drawFrame = () => {
-        if (!recorder || recorder.state !== 'recording') return;
-        if (video.currentTime >= endTime) {
-          recorder.stop();
-          video.pause();
-          return;
-        }
-        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-        requestAnimationFrame(drawFrame);
-      };
+      const clipDuration = endTime - startTime;
+      const maxWallTime = Math.max(clipDuration * 5, 30000);
+      const exportStart = Date.now();
 
-      video.addEventListener('play', () => { drawFrame(); });
+      function startCanvasLoop() {
+        const draw = () => {
+          if (!recorder || recorder.state !== 'recording') return;
+          if (Date.now() - exportStart > maxWallTime) {
+            recorder.stop();
+            return;
+          }
+          const ct = video.currentTime;
+          if (ct >= endTime || ct >= video.duration - 0.1) {
+            recorder.stop();
+            video.pause();
+            return;
+          }
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+          requestAnimationFrame(draw);
+        };
+        draw();
+      }
 
       setTimeout(() => {
         if (!metaLoaded) {
-          video.src = '';
-          URL.revokeObjectURL(videoUrl);
           addExportLog('❌ Export timed out loading video metadata');
+          cleanupExport();
         }
       }, 10000);
 
     } catch (err) {
       addExportLog(`❌ Export failed: ${err.message}`, 'accent');
       console.error(err);
+      cleanupExport();
     }
   }
 
